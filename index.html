@@ -1,0 +1,1184 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>CNC材料费用计算器</title>
+  <meta name="description" content="按材料、形状、尺寸快速估算 CNC 零件材料费用">
+  <meta name="theme-color" content="#f5f5f7" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="CNC材料费用">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="format-detection" content="telephone=no">
+  <style>
+    :root {
+      --bg: #f5f5f7;
+      --panel: #ffffff;
+      --fill: #f2f2f4;
+      --fill-strong: #e8e8ed;
+      --text: #1d1d1f;
+      --text-2: #6e6e73;
+      --text-3: #86868b;
+      --line: rgba(0, 0, 0, 0.07);
+      --blue: #0071e3;
+      --blue-press: #0060c0;
+      --blue-soft: rgba(0, 113, 227, 0.12);
+      --warn-bg: #fff6e6;
+      --warn: #9a5b00;
+      --dock-bg: rgba(255, 255, 255, 0.86);
+      --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.04), 0 10px 30px rgba(0, 0, 0, 0.07);
+      --shadow-raise: 0 1px 3px rgba(0, 0, 0, 0.12), 0 0 0 0.5px rgba(0, 0, 0, 0.04);
+      --ease: cubic-bezier(0.32, 0.72, 0, 1);
+      --m-steel: #8e8e93;
+      --m-stainless: #7b8894;
+      --m-al: #6fa0cc;
+      --m-cu: #c07a33;
+      --m-plastic: #4fa877;
+      --m-other: #a1a1a6;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #000000;
+        --panel: #1c1c1e;
+        --fill: #2c2c2e;
+        --fill-strong: #3a3a3c;
+        --text: #f5f5f7;
+        --text-2: #a1a1a6;
+        --text-3: #86868b;
+        --line: rgba(255, 255, 255, 0.1);
+        --blue: #0a84ff;
+        --blue-press: #0a6fd8;
+        --blue-soft: rgba(10, 132, 255, 0.22);
+        --warn-bg: #2b2113;
+        --warn: #ffb340;
+        --dock-bg: rgba(28, 28, 30, 0.88);
+        --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.5), 0 10px 30px rgba(0, 0, 0, 0.55);
+        --shadow-raise: 0 1px 3px rgba(0, 0, 0, 0.6), 0 0 0 0.5px rgba(255, 255, 255, 0.08);
+        --m-steel: #98989d;
+        --m-stainless: #8b9aa8;
+        --m-al: #8fb8e0;
+        --m-cu: #d99a5b;
+        --m-plastic: #7cc59a;
+        --m-other: #a1a1a6;
+      }
+    }
+
+    * { box-sizing: border-box; }
+
+    html { -webkit-text-size-adjust: 100%; }
+
+    body {
+      margin: 0;
+      min-height: 100dvh;
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC",
+        "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      font-size: 16px;
+      line-height: 1.45;
+      -webkit-font-smoothing: antialiased;
+      -webkit-tap-highlight-color: transparent;
+      background:
+        radial-gradient(720px 420px at 6% -10%, rgba(0, 113, 227, 0.10), transparent 62%),
+        radial-gradient(560px 360px at 104% -6%, rgba(255, 149, 0, 0.08), transparent 60%),
+        var(--bg);
+      background-attachment: fixed;
+    }
+
+    button, input, summary {
+      font: inherit;
+      letter-spacing: inherit;
+      color: inherit;
+    }
+
+    button {
+      border: 0;
+      padding: 0;
+      background: none;
+      cursor: pointer;
+      touch-action: manipulation;
+      -webkit-user-select: none;
+      user-select: none;
+      transition: transform 0.16s var(--ease), background 0.2s var(--ease);
+    }
+
+    button:active { transform: scale(0.97); }
+
+    .app {
+      max-width: 520px;
+      margin: 0 auto;
+      /* 给底部固定操作栏留出空间，避免遮住内容 */
+      padding: 8px 12px calc(96px + env(safe-area-inset-bottom));
+      padding-top: calc(8px + env(safe-area-inset-top));
+    }
+
+    /* ---------- 顶栏 ---------- */
+    .head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 6px 2px 12px;
+    }
+
+    .head h1 {
+      margin: 0;
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .copy-btn {
+      flex: none;
+      min-height: 36px;
+      padding: 0 14px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-2);
+      background: var(--panel);
+      box-shadow: var(--shadow-raise);
+    }
+
+    /* ---------- 卡片 ---------- */
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      box-shadow: var(--shadow-card);
+      padding: 16px;
+    }
+
+    .card + .card, .card + .log, .log + .card { margin-top: 12px; }
+
+    .title {
+      margin: 0 0 12px;
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+    }
+
+    .hint {
+      margin: 10px 0 0;
+      font-size: 12.5px;
+      line-height: 1.5;
+      color: var(--text-3);
+    }
+
+    /* ---------- 费用汇总 ---------- */
+    .sum-label {
+      display: block;
+      font-size: 12.5px;
+      font-weight: 500;
+      color: var(--text-2);
+    }
+
+    .sum-amount {
+      display: flex;
+      align-items: baseline;
+      gap: 5px;
+      margin-top: 2px;
+    }
+
+    .sum-amount strong {
+      font-size: clamp(34px, 11vw, 44px);
+      font-weight: 700;
+      line-height: 1.05;
+      letter-spacing: -0.035em;
+      font-variant-numeric: tabular-nums;
+      overflow-wrap: anywhere;
+    }
+
+    .sum-amount i {
+      font-style: normal;
+      font-size: 15px;
+      font-weight: 500;
+      color: var(--text-2);
+    }
+
+    .sum-sub {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin: 6px 0 0;
+      font-size: 13px;
+      color: var(--text-3);
+      overflow-wrap: anywhere;
+    }
+
+    .sum-sub b { font-weight: 600; color: var(--text-2); }
+
+    .sum-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 14px;
+      padding-top: 14px;
+      border-top: 1px solid var(--line);
+    }
+
+    .stat {
+      min-width: 0;
+      padding: 8px 5px;
+      border-radius: 12px;
+      background: var(--fill);
+      text-align: center;
+    }
+
+    .stat > span {
+      display: block;
+      font-size: 10px;
+      font-weight: 500;
+      color: var(--text-2);
+      margin-bottom: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .stat > b {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      font-variant-numeric: tabular-nums;
+      overflow-wrap: anywhere;
+    }
+
+    /* ---------- 材料胶囊 ---------- */
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    /* flex-grow 让每行的胶囊自动撑满整行，任何屏宽都不会留下空档 */
+    .chip {
+      flex: 1 1 auto;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      /* 手机上的主要输入方式，按 44px 触控标准给足高度 */
+      min-height: 44px;
+      padding: 0 12px;
+      border-radius: 999px;
+      background: var(--fill);
+      color: var(--text);
+      font-size: 13.5px;
+      font-weight: 500;
+    }
+
+    .chip.active {
+      background: var(--blue);
+      color: #fff;
+      font-weight: 600;
+    }
+
+    .dot {
+      flex: none;
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.16);
+    }
+
+    .chip.active .dot { box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.7); }
+
+    .dot-steel { background: var(--m-steel); }
+    .dot-stainless { background: var(--m-stainless); }
+    .dot-al { background: var(--m-al); }
+    .dot-cu { background: var(--m-cu); }
+    .dot-plastic { background: var(--m-plastic); }
+    .dot-other { background: var(--m-other); }
+
+    /* ---------- 输入 ---------- */
+    .form-grid, .dim-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    label {
+      display: grid;
+      gap: 6px;
+      min-width: 0;
+      font-size: 12.5px;
+      font-weight: 500;
+      color: var(--text-2);
+    }
+
+    .span-2 { grid-column: 1 / -1; }
+
+    input {
+      width: 100%;
+      min-height: 50px;
+      padding: 12px 14px;
+      color: var(--text);
+      background: var(--fill);
+      border: 1px solid transparent;
+      border-radius: 14px;
+      /* 16px 以下 iOS 聚焦时会自动放大页面，这里固定 16px */
+      font-size: 16px;
+      outline: none;
+      -webkit-appearance: none;
+      appearance: none;
+      transition: background 0.22s var(--ease), box-shadow 0.22s var(--ease), border-color 0.22s var(--ease);
+    }
+
+    input::placeholder { color: var(--text-3); }
+
+    input:focus {
+      background: var(--panel);
+      border-color: var(--blue);
+      box-shadow: 0 0 0 4px var(--blue-soft);
+    }
+
+    /* ---------- 形状 ---------- */
+    .segmented {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 4px;
+      padding: 4px;
+      border-radius: 16px;
+      background: var(--fill);
+    }
+
+    .segmented .shape {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      min-height: 46px;
+      padding: 0 4px;
+      border-radius: 12px;
+      color: var(--text-2);
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .segmented .shape.active {
+      background: var(--panel);
+      color: var(--text);
+      font-weight: 600;
+      box-shadow: var(--shadow-raise);
+    }
+
+    .ico {
+      flex: none;
+      width: 16px;
+      height: 16px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 1.7;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .sum-sub .ico {
+      width: 15px;
+      height: 15px;
+      stroke-width: 1.6;
+    }
+
+    /* ---------- 高级 ---------- */
+    details.card { padding: 0; }
+
+    details.card > summary {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 16px;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-2);
+      list-style: none;
+      outline: none;
+    }
+
+    details.card > summary::-webkit-details-marker { display: none; }
+
+    details.card > summary::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      border-right: 2px solid currentColor;
+      border-bottom: 2px solid currentColor;
+      transform: rotate(-45deg) translate(-1px, -1px);
+      transition: transform 0.24s var(--ease);
+    }
+
+    details.card[open] > summary::before { transform: rotate(45deg) translate(-2px, -2px); }
+
+    details.card .form-grid { padding: 0 16px 16px; }
+
+    /* ---------- 提示 ---------- */
+    .log { font-size: 13px; line-height: 1.5; color: var(--text-2); }
+
+    .log:not(:empty) {
+      padding: 11px 14px;
+      background: var(--warn-bg);
+      color: var(--warn);
+      border-radius: 14px;
+    }
+
+    /* ---------- 底部固定操作栏 ---------- */
+    .dock {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 40;
+      padding: 9px 12px calc(9px + env(safe-area-inset-bottom));
+      background: var(--dock-bg);
+      border-top: 1px solid var(--line);
+      backdrop-filter: saturate(180%) blur(18px);
+      -webkit-backdrop-filter: saturate(180%) blur(18px);
+    }
+
+    .dock-inner {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      max-width: 520px;
+      margin: 0 auto;
+    }
+
+    .dock-cost {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+
+    .dock-cost > span {
+      display: block;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-3);
+    }
+
+    .dock-cost > div {
+      display: flex;
+      align-items: baseline;
+      gap: 4px;
+    }
+
+    .dock-cost strong {
+      font-size: clamp(18px, 6vw, 23px);
+      font-weight: 700;
+      line-height: 1.2;
+      letter-spacing: -0.03em;
+      font-variant-numeric: tabular-nums;
+      overflow-wrap: anywhere;
+    }
+
+    .dock-cost i {
+      font-style: normal;
+      font-size: 12.5px;
+      color: var(--text-2);
+    }
+
+    .btn-calc {
+      flex: none;
+      min-height: 48px;
+      padding: 0 24px;
+      border-radius: 14px;
+      color: #fff;
+      background: var(--blue);
+      font-weight: 600;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+    }
+
+    .btn-calc:active { background: var(--blue-press); }
+
+    .btn-clear {
+      flex: none;
+      min-height: 48px;
+      padding: 0 16px;
+      border-radius: 14px;
+      color: var(--text);
+      background: var(--fill-strong);
+      font-weight: 500;
+    }
+
+    /* ---------- 复制兜底面板 ---------- */
+    .copy-layer {
+      position: fixed;
+      inset: 0;
+      z-index: 60;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: rgba(0, 0, 0, 0.36);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+    }
+
+    .copy-panel {
+      width: 100%;
+      max-width: 380px;
+      padding: 16px;
+      border-radius: 18px;
+      background: var(--panel);
+      box-shadow: var(--shadow-card);
+    }
+
+    .copy-panel p {
+      margin: 0 0 10px;
+      font-size: 13px;
+      color: var(--text-2);
+    }
+
+    .copy-panel textarea {
+      width: 100%;
+      height: 132px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--fill);
+      color: var(--text);
+      font-size: 14px;
+      line-height: 1.6;
+      resize: none;
+    }
+
+    .copy-panel button {
+      width: 100%;
+      min-height: 46px;
+      margin-top: 12px;
+      border-radius: 14px;
+      background: var(--blue);
+      color: #fff;
+      font-weight: 600;
+    }
+
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: none; }
+    }
+
+    .card { animation: rise 0.45s var(--ease) both; }
+
+    @media (prefers-reduced-motion: reduce) {
+      * { animation: none !important; transition: none !important; }
+    }
+
+    /* 窄屏（iPhone SE 等 320px）再收紧一档 */
+    @media (max-width: 350px) {
+      .app { padding-left: 10px; padding-right: 10px; }
+      .card { padding: 14px; border-radius: 18px; }
+      .chip { padding: 0 9px; gap: 5px; font-size: 12.5px; }
+      .sum-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .stat > span { font-size: 11px; }
+      .stat > b { font-size: 15px; }
+      .btn-calc { padding: 0 18px; }
+      .btn-clear { padding: 0 13px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="head">
+      <h1>CNC材料费用计算器</h1>
+      <button class="copy-btn" id="copyBtn" type="button">分享结果</button>
+    </header>
+
+    <section class="card summary" aria-label="费用汇总">
+      <span class="sum-label">材料费用</span>
+      <div class="sum-amount">
+        <strong data-result="cost">0.00</strong>
+        <i>元</i>
+      </div>
+      <p class="sum-sub">
+        <span data-result="materialShow">未选择</span>
+        <span>·</span>
+        <svg class="ico" id="heroShapeIcon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"></svg>
+        <span data-result="shapeShow">圆棒</span>
+        <span>·</span>
+        <span>单价 <b data-result="priceShow">0</b> 元/kg</span>
+      </p>
+      <div class="sum-grid">
+        <div class="stat"><span>单件重量 kg</span><b data-result="oneWeight">0</b></div>
+        <div class="stat"><span>总重量 kg</span><b data-result="totalWeight">0</b></div>
+        <div class="stat"><span>体积 cm³</span><b data-result="volume">0</b></div>
+        <div class="stat"><span>密度 g/cm³</span><b data-result="densityShow">0</b></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <p class="title">常用材料</p>
+      <div class="chips" id="materialChips"></div>
+    </section>
+
+    <section class="card">
+      <div class="form-grid">
+        <label class="span-2">材料
+          <input id="material" list="materialList" placeholder="点上面的常用材料，或输入牌号" autocomplete="off" autocorrect="off" spellcheck="false">
+        </label>
+        <label>单价 元/kg
+          <input id="price" inputmode="decimal" placeholder="例如 10">
+        </label>
+        <label>数量
+          <input id="qty" inputmode="decimal" value="1">
+        </label>
+      </div>
+      <p class="hint">材料和单价填过一次就会记住：下次输入 POM，单价自动带出。</p>
+      <datalist id="materialList"></datalist>
+    </section>
+
+    <section class="card">
+      <p class="title">形状</p>
+      <div class="segmented" id="shapeGrid"></div>
+    </section>
+
+    <section class="card">
+      <p class="title" id="dimTitle">尺寸</p>
+      <div class="dim-grid" id="dimFields"></div>
+    </section>
+
+    <details class="card">
+      <summary>高级：损耗、余量、密度</summary>
+      <div class="form-grid">
+        <label>损耗 %<input id="loss" inputmode="decimal" value="0"></label>
+        <label>尺寸余量 mm<input id="allowance" inputmode="decimal" value="0"></label>
+        <label class="span-2">密度 g/cm³<input id="density" inputmode="decimal" placeholder="自动带出"></label>
+      </div>
+    </details>
+
+    <div class="log" id="log"></div>
+  </div>
+
+  <div class="dock">
+    <div class="dock-inner">
+      <div class="dock-cost">
+        <span>材料费用</span>
+        <div>
+          <strong data-result="cost">0.00</strong>
+          <i>元</i>
+        </div>
+      </div>
+      <button class="btn-calc" id="calcBtn" type="button">计算</button>
+      <button class="btn-clear" id="clearBtn" type="button">清空</button>
+    </div>
+  </div>
+  <script>
+    const materials = [
+      { name: "45#钢/Q235/A3", keys: ["45#", "45号钢", "45钢", "Q235", "A3"], density: 7.85, hot: true },
+      { name: "20#钢", keys: ["20#", "20号钢"], density: 7.85, hot: true },
+      { name: "65Mn弹簧钢", keys: ["65MN", "65Mn"], density: 7.85, hot: true },
+      { name: "T10工具钢", keys: ["T10", "工具钢T10"], density: 7.85, hot: true },
+      { name: "40Cr合金钢", keys: ["40CR", "40Cr"], density: 7.85, hot: true },
+      { name: "42CrMo合金钢", keys: ["42CRMO", "42CrMo"], density: 7.85, hot: true },
+      { name: "38CrMoAl合金钢", keys: ["38CRMOAL", "38CrMoAl"], density: 7.85, hot: true },
+      { name: "20CrMnTi合金钢", keys: ["20CRMNTI", "20CrMnTi"], density: 7.85, hot: true },
+      { name: "GCr15轴承钢", keys: ["GCR15", "GCr15"], density: 7.81, hot: true },
+      { name: "SUS303不锈钢", keys: ["SUS303", "303"], density: 7.93, hot: true },
+      { name: "304不锈钢", keys: ["304", "SUS304"], density: 7.93, hot: true },
+      { name: "316不锈钢", keys: ["316", "SUS316"], density: 7.98, hot: true },
+      { name: "SUS420不锈钢", keys: ["SUS420", "420"], density: 7.75, hot: true },
+      { name: "SUS440不锈钢", keys: ["SUS440", "440"], density: 7.75, hot: true },
+      { name: "AL5052铝", keys: ["AL5052", "5052", "铝5052"], density: 2.68, hot: true },
+      { name: "6061铝", keys: ["6061", "AL6061", "铝6061"], density: 2.70, hot: true },
+      { name: "7075铝", keys: ["7075", "AL7075", "铝7075"], density: 2.81, hot: true },
+      { name: "ADC12压铸铝", keys: ["ADC12", "压铸铝"], density: 2.74, hot: true },
+      { name: "T2紫铜", keys: ["T2", "紫铜", "纯铜"], density: 8.96, hot: true },
+      { name: "H62黄铜", keys: ["H62", "黄铜62", "黄铜"], density: 8.50, hot: true },
+      { name: "QSn6.5-0.1锡青铜", keys: ["QSN6.5-0.1", "QSn6.5-0.1", "锡青铜"], density: 8.80, hot: true },
+      { name: "QAl9-4铝青铜", keys: ["QAL9-4", "QAl9-4", "QA19-4", "铝青铜"], density: 7.60, hot: true },
+      { name: "QBe2铍青铜", keys: ["QBE2", "QBe2", "铍青铜"], density: 8.30, hot: true },
+      { name: "HT200灰口铸铁", keys: ["HT200", "灰口铸铁"], density: 7.20, hot: true },
+      { name: "HT250灰口铸铁", keys: ["HT250"], density: 7.20, hot: true },
+      { name: "QT450球墨铸铁", keys: ["QT450", "球墨铸铁"], density: 7.20, hot: true },
+      { name: "QT500球墨铸铁", keys: ["QT500"], density: 7.20, hot: true },
+      { name: "PA66尼龙", keys: ["PA66", "尼龙66"], density: 1.14, hot: true },
+      { name: "POM", keys: ["POM", "赛钢"], density: 1.41, hot: true },
+      { name: "PF电木", keys: ["PF", "电木"], density: 1.35, hot: true },
+      { name: "PMMA亚克力", keys: ["PMMA", "亚克力", "有机玻璃"], density: 1.19, hot: true },
+      { name: "PTFE铁氟龙", keys: ["PTFE", "铁氟龙", "聚四氟乙烯"], density: 2.20, hot: true },
+      { name: "PEEK", keys: ["PEEK"], density: 1.30, hot: true },
+      { name: "P20模具钢", keys: ["P20"], density: 7.85, hot: true },
+      { name: "718模具钢", keys: ["718"], density: 7.85, hot: true },
+      { name: "S136模具钢", keys: ["S136"], density: 7.80, hot: true },
+      { name: "Cr12MoV模具钢", keys: ["CR12MOV", "Cr12MoV"], density: 7.85, hot: true },
+      { name: "D2模具钢", keys: ["D2"], density: 7.85, hot: true },
+      { name: "SKD11模具钢", keys: ["SKD11"], density: 7.85, hot: true },
+      { name: "H13热作模具钢", keys: ["H13"], density: 7.85, hot: true },
+      { name: "Cr12模具钢", keys: ["CR12", "Cr12"], density: 7.85 },
+      { name: "铸钢", keys: ["铸钢"], density: 7.85 },
+      { name: "高速钢", keys: ["高速钢", "HSS"], density: 8.30 },
+      { name: "304L不锈钢", keys: ["304L", "SUS304L"], density: 7.93 },
+      { name: "201不锈钢", keys: ["201", "SUS201"], density: 7.93 },
+      { name: "202不锈钢", keys: ["202", "SUS202"], density: 7.93 },
+      { name: "316L不锈钢", keys: ["316L", "SUS316L"], density: 7.98 },
+      { name: "410不锈钢", keys: ["410"], density: 7.75 },
+      { name: "430不锈钢", keys: ["430"], density: 7.75 },
+      { name: "1Cr18Ni9Ti", keys: ["1CR18NI9TI", "1Cr18Ni9Ti"], density: 7.90 },
+      { name: "不锈钢", keys: ["不锈钢"], density: 7.93 },
+      { name: "2A12铝", keys: ["2A12", "LY12"], density: 2.78 },
+      { name: "5A06铝", keys: ["5A06"], density: 2.66 },
+      { name: "2A14铝", keys: ["2A14"], density: 2.80 },
+      { name: "铝板", keys: ["铝板"], density: 2.70 },
+      { name: "锻铝", keys: ["锻铝"], density: 2.80 },
+      { name: "铸铝", keys: ["铸铝"], density: 2.70 },
+      { name: "钛合金TC4", keys: ["TC4", "钛合金TC4"], density: 4.43 },
+      { name: "钛合金TA2", keys: ["TA2", "钛合金TA2"], density: 4.51 },
+      { name: "镁合金AZ31", keys: ["AZ31", "镁合金AZ31"], density: 1.78 },
+      { name: "镁合金AZ91D", keys: ["AZ91D", "镁合金AZ91D"], density: 1.81 },
+      { name: "H59黄铜", keys: ["H59", "黄铜59"], density: 8.50 },
+      { name: "工业镍", keys: ["工业镍", "镍"], density: 8.90 },
+      { name: "尼龙1010", keys: ["尼龙1010", "PA1010"], density: 1.05 },
+      { name: "其他材料", keys: ["其他材料", "其他"], density: 0 }
+    ];
+
+    const shapes = {
+      round: { label: "圆棒", aliases: ["圆棒", "棒料", "圆钢"], fields: [["diameter", "直径 mm"], ["length", "长度 mm"]] },
+      tube: { label: "圆管", aliases: ["管料", "圆管", "钢管"], fields: [["outer", "外径 mm"], ["inner", "内径 mm"], ["length", "长度 mm"]] },
+      plate: { label: "板/方料", aliases: ["板料", "方料", "铝板", "钢板", "块料"], fields: [["length", "长度 mm"], ["width", "宽度 mm"], ["height", "厚度/高度 mm"]] },
+      squareTube: { label: "方管", aliases: ["方管", "矩形管", "方通"], fields: [["width", "外宽 mm"], ["height", "外高 mm"], ["wall", "壁厚 mm"], ["length", "长度 mm"]] },
+      hex: { label: "六方", aliases: ["六方", "六角", "六角棒", "六方棒"], fields: [["across", "对边 mm"], ["length", "长度 mm"]] },
+      ibeam: { label: "工字钢", aliases: ["工字钢", "工字梁", "I型钢"], fields: [["height", "高度H mm"], ["flange", "翼宽B mm"], ["web", "腹板厚tw mm"], ["flangeThickness", "翼板厚tf mm"], ["length", "长度 mm"]] }
+    };
+
+    // 各形状的截面线框图标（24x24，随文字颜色变化）
+    const shapeIcons = {
+      round: '<circle cx="12" cy="12" r="7.6"/>',
+      tube: '<ellipse cx="12" cy="6.5" rx="6.4" ry="2.8"/><path d="M5.6 6.5v10.6a6.4 2.8 0 0 0 12.8 0V6.5"/>',
+      plate: '<rect x="2.6" y="8" width="18.8" height="8" rx="1.6"/>',
+      squareTube: '<rect x="4" y="4" width="16" height="16" rx="1.8"/><rect x="8.6" y="8.6" width="6.8" height="6.8" rx="1"/>',
+      hex: '<path d="M12 3.7l7.2 4.15v8.3L12 20.3 4.8 16.15v-8.3z"/>',
+      ibeam: '<path d="M4 3.6h16V7h-6.8v10H20v3.4H4V17h6.8V7H4z"/>'
+    };
+
+    // 材料族，用于胶囊上的小色点
+    const materialFamilies = [
+      ["stainless", /不锈钢|SUS|Cr18Ni9/i],
+      ["cu", /铜|H59|H62|^T2$/],
+      ["al", /铝|AL\d|ADC|2A1\d|5A0\d|LY12/],
+      ["plastic", /POM|PA\d|尼龙|电木|亚克力|铁氟龙|聚四氟|PEEK|赛钢|PF$/i],
+      ["steel", /钢|铁|Cr|Mo|Mn|Ni|钨/],
+      ["other", /./]
+    ];
+
+    const $ = (id) => document.getElementById(id);
+    const state = { shape: "round" };
+    const commonMaterialNames = [
+      "45#钢/Q235/A3",
+      "304不锈钢",
+      "316不锈钢",
+      "6061铝",
+      "7075铝",
+      "H62黄铜",
+      "T2紫铜",
+      "POM",
+      "20#钢",
+      "2A12铝",
+      "PA66尼龙"
+    ];
+    let lastMaterialName = "";
+
+    function setResult(id, value) {
+      document.querySelectorAll(`[data-result="${id}"]`).forEach(item => {
+        item.textContent = value;
+      });
+    }
+
+    function numberOf(value) {
+      const num = parseFloat(String(value || "").replace(",", "."));
+      return Number.isFinite(num) ? num : 0;
+    }
+
+    function money(value) {
+      return Number(value || 0).toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function fixed(value, digits = 3) {
+      if (!Number.isFinite(value)) return "0";
+      return Number(value).toFixed(digits).replace(/\.?0+$/, "");
+    }
+
+    function getSavedPrices() {
+      try { return JSON.parse(localStorage.getItem("cncMaterialPrices") || "{}"); }
+      catch { return {}; }
+    }
+
+    function setSavedPrices(data) {
+      localStorage.setItem("cncMaterialPrices", JSON.stringify(data));
+    }
+
+    function savedPriceForMaterial(material) {
+      if (!material) return null;
+      const saved = getSavedPrices();
+      const names = [material.name, ...material.keys];
+      for (const name of names) {
+        if (saved[name]?.manual && saved[name]?.price) return saved[name];
+      }
+      return null;
+    }
+
+    function savedPriceForName(name) {
+      const saved = getSavedPrices();
+      return saved[name]?.manual && saved[name]?.price ? saved[name] : null;
+    }
+
+    function findMaterial(text) {
+      const raw = String(text || "").toUpperCase();
+      const hasTerm = (term) => {
+        const key = term.toUpperCase();
+        if (/^[A-Z0-9.-]+$/.test(key) && key.length <= 3) {
+          const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+          return new RegExp(`(^|[^A-Z0-9])${escaped}($|[^A-Z0-9])`).test(raw);
+        }
+        return raw.includes(key);
+      };
+      const matched = materials
+        .map(item => {
+          const terms = [...item.keys, item.name];
+          const best = terms
+            .map(term => term.toUpperCase())
+            .filter(term => hasTerm(term))
+            .sort((a, b) => b.length - a.length)[0];
+          return best ? { item, length: best.length } : null;
+        })
+        .filter(Boolean)
+        .sort((a, b) => b.length - a.length);
+      return matched[0]?.item;
+    }
+
+    function materialFamily(name) {
+      const hit = materialFamilies.find(([, pattern]) => pattern.test(name));
+      return hit ? hit[0] : "other";
+    }
+
+    function shapeIcon(key) {
+      return `<svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false">${shapeIcons[key] || ""}</svg>`;
+    }
+
+    function renderMaterialList() {
+      $("materialList").innerHTML = materials.map(item => `<option value="${item.name}"></option>`).join("");
+    }
+
+    function renderMaterialChips() {
+      $("materialChips").innerHTML = commonMaterialNames
+        .map(name => materials.find(item => item.name === name))
+        .filter(Boolean)
+        .map(item => (
+        `<button class="chip" data-material="${item.name}"><i class="dot dot-${materialFamily(item.name)}"></i>${item.name}</button>`
+      )).join("");
+      const current = currentMaterialName();
+      document.querySelectorAll("[data-material]").forEach(btn => {
+        btn.addEventListener("click", () => {
+          setMaterial(btn.dataset.material);
+          renderMaterialChips();
+          calculate();
+        });
+        btn.classList.toggle("active", btn.dataset.material === current);
+      });
+    }
+
+    function renderShapeGrid() {
+      $("shapeGrid").innerHTML = Object.entries(shapes).map(([key, shape]) => (
+        `<button class="shape ${key === state.shape ? "active" : ""}" data-shape="${key}">${shapeIcon(key)}${shape.label}</button>`
+      )).join("");
+      document.querySelectorAll("[data-shape]").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const oldShape = state.shape;
+          const oldValues = currentFieldValues();
+          state.shape = btn.dataset.shape;
+          const values = mapShapeValues(oldShape, state.shape, oldValues);
+          renderShapeGrid();
+          renderDimFields(values);
+          calculate();
+        });
+      });
+      setResult("shapeShow", shapes[state.shape].label);
+      if ($("heroShapeIcon")) $("heroShapeIcon").innerHTML = shapeIcons[state.shape] || "";
+      $("dimTitle").textContent = `${shapes[state.shape].label}尺寸`;
+    }
+
+    function renderDimFields(values = {}) {
+      $("dimFields").innerHTML = shapes[state.shape].fields.map(([id, label]) => (
+        `<label>${label}<input id="${id}" inputmode="decimal" autocomplete="off" value="${values[id] ?? $(id)?.value ?? ""}"></label>`
+      )).join("");
+      shapes[state.shape].fields.forEach(([id]) => $(id).addEventListener("input", calculate));
+    }
+
+    function currentFieldValues() {
+      const values = {};
+      shapes[state.shape].fields.forEach(([id]) => {
+        values[id] = $(id)?.value || "";
+      });
+      return values;
+    }
+
+    function mapShapeValues(fromShape, toShape, values) {
+      const next = {};
+      if (toShape === fromShape) return values;
+
+      const length = values.length || "";
+      if (length) next.length = length;
+
+      if (fromShape === "round" && toShape === "tube") {
+        next.outer = values.diameter || "";
+      }
+      if (fromShape === "tube" && toShape === "round") {
+        next.diameter = values.outer || "";
+      }
+      if ((fromShape === "round" || fromShape === "tube") && toShape === "hex") {
+        next.across = values.diameter || values.outer || "";
+      }
+      if (fromShape === "hex" && toShape === "round") {
+        next.diameter = values.across || "";
+      }
+      if (fromShape === "plate" && toShape === "squareTube") {
+        next.width = values.width || "";
+        next.height = values.height || "";
+      }
+      if (fromShape === "squareTube" && toShape === "plate") {
+        next.width = values.width || "";
+        next.height = values.height || "";
+      }
+      return next;
+    }
+
+    function currentMaterialName() {
+      const typed = $("material").value.trim();
+      const known = findMaterial(typed);
+      return known ? known.name : typed;
+    }
+
+    function setMaterial(name, fillInput = true) {
+      const material = findMaterial(name);
+      if (material) {
+        if (fillInput) $("material").value = material.name;
+        $("density").value = material.density || "";
+        const saved = savedPriceForMaterial(material);
+        if (saved?.price) {
+          $("price").value = saved.price;
+        } else if (lastMaterialName && lastMaterialName !== material.name) {
+          $("price").value = "";
+        }
+      }
+      lastMaterialName = currentMaterialName();
+    }
+
+    function saveMaterialPriceNow() {
+      const material = findMaterial($("material").value);
+      const name = material ? material.name : currentMaterialName();
+      const density = numberOf($("density").value) || material?.density || 0;
+      const price = numberOf($("price").value);
+      if (!name || !density || !price) return false;
+      const saved = getSavedPrices();
+      saved[name] = { density, price, manual: true, updatedAt: Date.now() };
+      setSavedPrices(saved);
+      return true;
+    }
+
+    function volumeMm3() {
+      const add = numberOf($("allowance").value);
+      const raw = (id) => Math.max(0, numberOf($(id)?.value));
+      const v = (id) => Math.max(0, raw(id) + add);
+      if (state.shape === "round") return Math.PI * Math.pow(v("diameter"), 2) / 4 * v("length");
+      if (state.shape === "tube") {
+        const outer = v("outer");
+        const inner = raw("inner");
+        if (inner >= outer) return 0;
+        return Math.PI * (Math.pow(outer, 2) - Math.pow(inner, 2)) / 4 * v("length");
+      }
+      if (state.shape === "plate") return v("length") * v("width") * v("height");
+      if (state.shape === "squareTube") {
+        const width = v("width");
+        const height = v("height");
+        const wall = raw("wall");
+        const innerWidth = Math.max(0, width - wall * 2);
+        const innerHeight = Math.max(0, height - wall * 2);
+        return (width * height - innerWidth * innerHeight) * v("length");
+      }
+      if (state.shape === "hex") return Math.sqrt(3) / 2 * Math.pow(v("across"), 2) * v("length");
+      if (state.shape === "ibeam") {
+        const height = v("height");
+        const flange = v("flange");
+        const web = raw("web");
+        const flangeThickness = raw("flangeThickness");
+        const webHeight = Math.max(0, height - flangeThickness * 2);
+        return (flange * flangeThickness * 2 + webHeight * web) * v("length");
+      }
+      return 0;
+    }
+
+    function calculate() {
+      const material = findMaterial($("material").value);
+      if (material && !numberOf($("density").value)) $("density").value = material.density || "";
+      const saved = material ? savedPriceForMaterial(material) : savedPriceForName(currentMaterialName());
+      if (!numberOf($("price").value) && saved?.price) $("price").value = saved.price;
+
+      const density = numberOf($("density").value);
+      const price = numberOf($("price").value);
+      const qty = numberOf($("qty").value) || 1;
+      const loss = numberOf($("loss").value);
+      const volMm3 = Math.max(0, volumeMm3());
+      const volCm3 = volMm3 / 1000;
+      const oneKg = volCm3 * density / 1000;
+      const totalKg = oneKg * qty * (1 + loss / 100);
+      const cost = totalKg * price;
+
+      setResult("cost", money(cost));
+      setResult("priceShow", price ? fixed(price, 2) : "0");
+      setResult("oneWeight", fixed(oneKg, 4));
+      setResult("totalWeight", fixed(totalKg, 4));
+      setResult("volume", fixed(volCm3, 2));
+      setResult("densityShow", density ? fixed(density, 3) : "0");
+      setResult("shapeShow", shapes[state.shape].label);
+      setResult("materialShow", currentMaterialName() || "未选择");
+
+      saveMaterialPriceNow();
+
+      const missing = [];
+      if (!density) missing.push("密度");
+      if (!price) missing.push("单价");
+      shapes[state.shape].fields.forEach(([id, label]) => {
+        if (!numberOf($(id)?.value)) missing.push(label.replace(" mm", ""));
+      });
+      $("log").textContent = missing.length ? `还缺：${missing.join("、")}` : "";
+    }
+
+    function clearForm() {
+      ["material", "density", "price"].forEach(id => $(id).value = "");
+      $("qty").value = 1;
+      $("loss").value = 0;
+      $("allowance").value = 0;
+      lastMaterialName = "";
+      state.shape = "round";
+      renderShapeGrid();
+      renderDimFields({});
+      renderMaterialChips();
+      calculate();
+    }
+
+    function bindEvents() {
+      $("calcBtn").addEventListener("click", calculate);
+      $("clearBtn").addEventListener("click", clearForm);
+      ["material", "density", "price", "qty", "loss", "allowance"].forEach(id => {
+        $(id).addEventListener("input", () => {
+          if (id === "material") setMaterial($(id).value, false);
+          renderMaterialChips();
+          calculate();
+        });
+      });
+    }
+
+    renderMaterialList();
+    renderMaterialChips();
+    renderShapeGrid();
+    renderDimFields();
+    bindEvents();
+    calculate();
+  
+  </script>
+  <script>
+  (function () {
+    const el = (id) => document.getElementById(id);
+    const text = (id) => document.querySelector('[data-result="' + id + '"]')?.textContent?.trim() || "";
+
+    function resultText() {
+      const dims = shapes[state.shape].fields
+        .map(([id, label]) => {
+          const value = el(id)?.value || "";
+          return value ? label.replace(" mm", "") + " " + value : "";
+        })
+        .filter(Boolean)
+        .join(" × ");
+      return [
+        "CNC材料费用：" + text("cost") + " 元",
+        "材料：" + text("materialShow"),
+        "形状：" + text("shapeShow") + (dims ? "　" + dims + " mm" : ""),
+        "单价：" + text("priceShow") + " 元/kg　数量：" + (el("qty")?.value || 1),
+        "单件重量：" + text("oneWeight") + " kg　总重：" + text("totalWeight") + " kg",
+        "体积：" + text("volume") + " cm³　密度：" + text("densityShow") + " g/cm³"
+      ].join("\n");
+    }
+
+    function fallbackCopy(content) {
+      const area = document.createElement("textarea");
+      area.value = content;
+      area.setAttribute("readonly", "");
+      area.style.cssText = "position:fixed;top:0;left:0;width:1px;height:1px;padding:0;border:0;opacity:0.01;";
+      document.body.appendChild(area);
+      let ok = false;
+      try {
+        area.focus({ preventScroll: true });
+        area.select();
+        area.setSelectionRange(0, area.value.length);
+        ok = document.execCommand("copy");
+      } catch (error) { ok = false; }
+      document.body.removeChild(area);
+      return ok;
+    }
+
+    // 老浏览器 / 微信内置浏览器里复制接口常被禁用，兜底把文字摊开让用户长按复制
+    function showCopyFallback(content) {
+      const layer = document.createElement("div");
+      layer.className = "copy-layer";
+      layer.innerHTML =
+        '<div class="copy-panel">' +
+        '<p>浏览器不允许自动复制，长按下面文字选中复制：</p>' +
+        '<textarea readonly></textarea>' +
+        '<button type="button">关闭</button>' +
+        "</div>";
+      const area = layer.querySelector("textarea");
+      area.value = content;
+      layer.querySelector("button").addEventListener("click", () => layer.remove());
+      layer.addEventListener("click", (event) => { if (event.target === layer) layer.remove(); });
+      document.body.appendChild(layer);
+      area.focus({ preventScroll: true });
+      area.select();
+    }
+
+    let flashTimer = 0;
+    function flash(message) {
+      const btn = el("copyBtn");
+      if (!btn) return;
+      if (!btn.dataset.label) btn.dataset.label = btn.textContent;
+      btn.textContent = message;
+      clearTimeout(flashTimer);
+      flashTimer = setTimeout(() => { btn.textContent = btn.dataset.label; }, 1400);
+    }
+
+    async function shareResult() {
+      const content = resultText();
+      if (navigator.share) {
+        try { await navigator.share({ title: "CNC材料费用", text: content }); return; }
+        catch (error) { if (error && error.name === "AbortError") return; }
+      }
+      if (navigator.clipboard && window.isSecureContext) {
+        try { await navigator.clipboard.writeText(content); flash("已复制"); return; } catch (error) {}
+      }
+      if (fallbackCopy(content)) { flash("已复制"); return; }
+      flash("长按复制");
+      showCopyFallback(content);
+    }
+
+    el("copyBtn")?.addEventListener("click", shareResult);
+    window.__cncResultText = resultText;
+
+    // 放在 https 或 localhost 上时自动升级成可安装、可离线的 PWA；本地/局域网打开时静默跳过
+    const upgradable = location.protocol === "https:" || ["localhost", "127.0.0.1"].includes(location.hostname);
+    if (upgradable) {
+      const exists = (url) => fetch(url, { method: "HEAD" }).then((res) => res.ok).catch(() => false);
+      const attach = (tag, attrs) => {
+        const node = document.createElement(tag);
+        Object.entries(attrs).forEach(([key, value]) => node.setAttribute(key, value));
+        document.head.appendChild(node);
+      };
+      exists("./manifest.json").then((ok) => { if (ok) attach("link", { rel: "manifest", href: "./manifest.json" }); });
+      exists("./icon-180.png").then((ok) => { if (ok) attach("link", { rel: "apple-touch-icon", sizes: "180x180", href: "./icon-180.png" }); });
+      if ("serviceWorker" in navigator) {
+        exists("./sw.js").then((ok) => { if (ok) navigator.serviceWorker.register("./sw.js").catch(() => {}); });
+      }
+    }
+  })();
+</script>
+</body>
+</html>
