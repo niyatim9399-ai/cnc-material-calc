@@ -1,5 +1,5 @@
 // 离线缓存：改动 index.html 后把下面的版本号 +1，即可让手机拉到新版本
-const CACHE = "cnc-material-v3";
+const CACHE = "cnc-material-v4";
 const ASSETS = [
   "./",
   "./index.html",

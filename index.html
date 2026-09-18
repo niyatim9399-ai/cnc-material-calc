@@ -555,75 +555,52 @@
       font-weight: 600;
     }
 
-    /* ---------- 底部加工承接（广告位） ---------- */
-    .ad-card {
-      display: grid;
+    /* ---------- 费用卡右上角：加工承接（广告位） ---------- */
+    .sum-top {
+      display: flex;
+      align-items: flex-start;
       gap: 12px;
-      margin-top: 12px;
-      padding: 16px;
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 20px;
-      box-shadow: var(--shadow-card);
-      animation: rise 0.45s var(--ease) 0.1s both;
+    }
+
+    .sum-main { flex: 1 1 auto; min-width: 0; }
+
+    .ad-card {
+      flex: 0 0 auto;
+      width: 47%;
+      max-width: 178px;
+      padding-left: 12px;
+      border-left: 1px solid var(--line);
     }
 
     .ad-brand {
       margin: 0;
-      font-size: 15.5px;
+      font-size: 12.5px;
       font-weight: 600;
+      line-height: 1.35;
       letter-spacing: -0.01em;
     }
 
     .ad-line {
-      margin: 5px 0 0;
-      font-size: 13px;
-      line-height: 1.5;
+      margin: 4px 0 0;
+      font-size: 11.5px;
+      line-height: 1.4;
       color: var(--text-2);
-    }
-
-    .ad-extra {
-      display: inline-block;
-      margin-top: 9px;
-      padding: 3px 10px;
-      border-radius: 999px;
-      background: var(--fill);
-      font-size: 12.5px;
-      color: var(--text-2);
-    }
-
-    .ad-cta {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-    }
-
-    .ad-wechat {
-      font-size: 15px;
-      font-weight: 500;
-      color: var(--text-2);
-      -webkit-user-select: all;
-      user-select: all;
-    }
-
-    .ad-wechat b {
-      font-weight: 600;
-      color: var(--text);
-      font-variant-numeric: tabular-nums;
-      letter-spacing: 0.01em;
     }
 
     .ad-copy {
-      flex: none;
-      min-height: 44px;
-      padding: 0 18px;
+      display: block;
+      width: 100%;
+      min-height: 38px;
+      margin-top: 7px;
+      padding: 0 10px;
       border-radius: 999px;
-      background: var(--blue);
-      color: #fff;
-      font-size: 13.5px;
+      background: var(--blue-soft);
+      color: var(--blue);
+      font-size: 12px;
       font-weight: 600;
       white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     @keyframes rise {
@@ -643,6 +620,16 @@
       .card { padding: 14px; border-radius: 18px; }
       .chip { padding: 0 9px; gap: 5px; font-size: 12.5px; }
       .sum-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      /* 320px 放不下左右并排：广告移到价格下方，仍留在同一张卡里 */
+      .sum-top { flex-wrap: wrap; }
+      .ad-card {
+        width: 100%;
+        max-width: none;
+        padding-left: 0;
+        padding-top: 10px;
+        border-left: 0;
+        border-top: 1px solid var(--line);
+      }
       .stat > span { font-size: 11px; }
       .stat > b { font-size: 15px; }
       .btn-calc { padding: 0 18px; }
@@ -658,19 +645,30 @@
     </header>
 
     <section class="card summary" aria-label="费用汇总">
-      <span class="sum-label">材料费用</span>
-      <div class="sum-amount">
-        <strong data-result="cost">0.00</strong>
-        <i>元</i>
+      <div class="sum-top">
+        <div class="sum-main">
+          <span class="sum-label">材料费用</span>
+          <div class="sum-amount">
+            <strong data-result="cost">0.00</strong>
+            <i>元</i>
+          </div>
+          <p class="sum-sub">
+            <span data-result="materialShow">未选择</span>
+            <span>·</span>
+            <svg class="ico" id="heroShapeIcon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"></svg>
+            <span data-result="shapeShow">圆棒</span>
+            <span>·</span>
+            <span>单价 <b data-result="priceShow">0</b> 元/kg</span>
+          </p>
+        </div>
+
+        <!-- 加工承接广告位：改文案只动这一段 -->
+        <aside class="ad-card" aria-label="加工承接">
+          <p class="ad-brand">数控小煲 · CNC车床加工</p>
+          <p class="ad-line">不锈钢 · 钛合金 · 铜 · POM</p>
+          <button class="ad-copy" id="adCopy" type="button" title="点击复制微信号">微信 xtxb0263</button>
+        </aside>
       </div>
-      <p class="sum-sub">
-        <span data-result="materialShow">未选择</span>
-        <span>·</span>
-        <svg class="ico" id="heroShapeIcon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"></svg>
-        <span data-result="shapeShow">圆棒</span>
-        <span>·</span>
-        <span>单价 <b data-result="priceShow">0</b> 元/kg</span>
-      </p>
       <div class="sum-grid">
         <div class="stat"><span>单件重量 kg</span><b data-result="oneWeight">0</b></div>
         <div class="stat"><span>总重量 kg</span><b data-result="totalWeight">0</b></div>
@@ -720,19 +718,6 @@
     </details>
 
     <div class="log" id="log"></div>
-
-    <!-- 加工承接广告位：改文案只动这一段 -->
-    <section class="ad-card" aria-label="加工承接">
-      <div class="ad-text">
-        <p class="ad-brand">数控小煲 · CNC 数控车床加工</p>
-        <p class="ad-line">承接：不锈钢 · 钛合金 · 铜 · POM 零件加工</p>
-        <p class="ad-extra">CNC 机床代理</p>
-      </div>
-      <div class="ad-cta">
-        <span class="ad-wechat">微信 <b>xtxb0263</b></span>
-        <button class="ad-copy" id="adCopy" type="button">复制微信号</button>
-      </div>
-    </section>
   </div>
 
   <div class="dock">
