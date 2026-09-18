@@ -1,5 +1,5 @@
 // 离线缓存：改动 index.html 后把下面的版本号 +1，即可让手机拉到新版本
-const CACHE = "cnc-material-v4";
+const CACHE = "cnc-material-v5";
 const ASSETS = [
   "./",
   "./index.html",
@@ -13,7 +13,10 @@ const ASSETS = [
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches.open(CACHE)
-      .then((cache) => cache.addAll(ASSETS))
+      // cache: "reload" 绕过浏览器 HTTP 缓存，否则刚部署完可能预缓存到旧页面
+      .then((cache) => Promise.all(ASSETS.map((url) =>
+        fetch(url, { cache: "reload" }).then((response) => cache.put(url, response))
+      )))
       .then(() => self.skipWaiting())
   );
 });

@@ -1275,10 +1275,16 @@
     }
 
     function copy(text) {
-      if (navigator.clipboard && window.isSecureContext) {
-        return navigator.clipboard.writeText(text).then(() => true).catch(() => legacyCopy(text));
+      if (!(navigator.clipboard && window.isSecureContext)) {
+        return Promise.resolve(legacyCopy(text));
       }
-      return Promise.resolve(legacyCopy(text));
+      // 个别环境（本地 file:// 打开时）writeText 既不 resolve 也不 reject，加超时兜底，保证按钮一定有反馈
+      let settled = false;
+      return new Promise((resolve) => {
+        const finish = (ok) => { if (!settled) { settled = true; resolve(ok); } };
+        navigator.clipboard.writeText(text).then(() => finish(true)).catch(() => finish(legacyCopy(text)));
+        setTimeout(() => finish(legacyCopy(text)), 900);
+      });
     }
 
     btn.addEventListener("click", () => {
