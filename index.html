@@ -555,6 +555,77 @@
       font-weight: 600;
     }
 
+    /* ---------- 底部加工承接（广告位） ---------- */
+    .ad-card {
+      display: grid;
+      gap: 12px;
+      margin-top: 12px;
+      padding: 16px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      box-shadow: var(--shadow-card);
+      animation: rise 0.45s var(--ease) 0.1s both;
+    }
+
+    .ad-brand {
+      margin: 0;
+      font-size: 15.5px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+    }
+
+    .ad-line {
+      margin: 5px 0 0;
+      font-size: 13px;
+      line-height: 1.5;
+      color: var(--text-2);
+    }
+
+    .ad-extra {
+      display: inline-block;
+      margin-top: 9px;
+      padding: 3px 10px;
+      border-radius: 999px;
+      background: var(--fill);
+      font-size: 12.5px;
+      color: var(--text-2);
+    }
+
+    .ad-cta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .ad-wechat {
+      font-size: 15px;
+      font-weight: 500;
+      color: var(--text-2);
+      -webkit-user-select: all;
+      user-select: all;
+    }
+
+    .ad-wechat b {
+      font-weight: 600;
+      color: var(--text);
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0.01em;
+    }
+
+    .ad-copy {
+      flex: none;
+      min-height: 44px;
+      padding: 0 18px;
+      border-radius: 999px;
+      background: var(--blue);
+      color: #fff;
+      font-size: 13.5px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
     @keyframes rise {
       from { opacity: 0; transform: translateY(10px); }
       to   { opacity: 1; transform: none; }
@@ -649,6 +720,19 @@
     </details>
 
     <div class="log" id="log"></div>
+
+    <!-- 加工承接广告位：改文案只动这一段 -->
+    <section class="ad-card" aria-label="加工承接">
+      <div class="ad-text">
+        <p class="ad-brand">数控小煲 · CNC 数控车床加工</p>
+        <p class="ad-line">承接：不锈钢 · 钛合金 · 铜 · POM 零件加工</p>
+        <p class="ad-extra">CNC 机床代理</p>
+      </div>
+      <div class="ad-cta">
+        <span class="ad-wechat">微信 <b>xtxb0263</b></span>
+        <button class="ad-copy" id="adCopy" type="button">复制微信号</button>
+      </div>
+    </section>
   </div>
 
   <div class="dock">
@@ -1178,6 +1262,46 @@
         exists("./sw.js").then((ok) => { if (ok) navigator.serviceWorker.register("./sw.js").catch(() => {}); });
       }
     }
+  })();
+</script>
+<script>
+  // 广告位微信号一键复制：优先剪贴板接口，老浏览器/微信内置浏览器回退 execCommand
+  (function () {
+    const btn = document.getElementById("adCopy");
+    if (!btn) return;
+    const wechat = "xtxb0263";
+    const label = btn.textContent;
+
+    function legacyCopy(text) {
+      const area = document.createElement("textarea");
+      area.value = text;
+      area.setAttribute("readonly", "");
+      area.style.cssText = "position:fixed;top:0;left:0;width:1px;height:1px;padding:0;border:0;opacity:0.01;";
+      document.body.appendChild(area);
+      let ok = false;
+      try {
+        area.focus({ preventScroll: true });
+        area.select();
+        area.setSelectionRange(0, area.value.length);
+        ok = document.execCommand("copy");
+      } catch (error) { ok = false; }
+      document.body.removeChild(area);
+      return ok;
+    }
+
+    function copy(text) {
+      if (navigator.clipboard && window.isSecureContext) {
+        return navigator.clipboard.writeText(text).then(() => true).catch(() => legacyCopy(text));
+      }
+      return Promise.resolve(legacyCopy(text));
+    }
+
+    btn.addEventListener("click", () => {
+      copy(wechat).then((ok) => {
+        btn.textContent = ok ? "已复制" : wechat;
+        setTimeout(() => { btn.textContent = label; }, 1600);
+      });
+    });
   })();
 </script>
 </body>
